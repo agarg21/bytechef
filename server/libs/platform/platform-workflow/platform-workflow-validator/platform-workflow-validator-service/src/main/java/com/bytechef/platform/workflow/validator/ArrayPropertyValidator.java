@@ -48,6 +48,10 @@ class ArrayPropertyValidator {
             return;
         }
 
+        if (valueJsonNode.isString() && TypeValidator.isExpression(valueJsonNode.asString())) {
+            return;
+        }
+
         if (!valueJsonNode.isArray()) {
             String actualType = JsonNodeUtils.getJsonNodeType(valueJsonNode);
 
@@ -74,12 +78,12 @@ class ArrayPropertyValidator {
             return;
         }
 
-        if (!valueJsonNode.isEmpty()) {
-            JsonNode firstElement = valueJsonNode.get(0);
+        JsonNode firstConcreteElement = findFirstConcreteElement(valueJsonNode);
 
+        if (firstConcreteElement != null) {
             if (isFreeFormObjectArray(nestedPropertyInfos)) {
                 validateFreeFormObjectArray(valueJsonNode, propertyPath, errors);
-            } else if (firstElement.isObject()) {
+            } else if (firstConcreteElement.isObject()) {
                 validateObjectArray(valueJsonNode, nestedPropertyInfos, propertyPath, errors, warnings);
             } else {
                 validateUnionTypeArray(valueJsonNode, nestedPropertyInfos, propertyPath, errors);
@@ -152,6 +156,16 @@ class ArrayPropertyValidator {
         rootNode.set(propertyPath, arrayValue);
 
         return rootNode;
+    }
+
+    private static JsonNode findFirstConcreteElement(JsonNode arrayJsonNode) {
+        for (JsonNode elementJsonNode : arrayJsonNode) {
+            if (!elementJsonNode.isString() || !TypeValidator.isExpression(elementJsonNode.asString())) {
+                return elementJsonNode;
+            }
+        }
+
+        return null;
     }
 
     private static String formatValue(JsonNode jsonNode) {
@@ -332,6 +346,10 @@ class ArrayPropertyValidator {
 
         String elementPath = propertyPath + "[" + index + "]";
 
+        if (elementJsonNode.isString() && TypeValidator.isExpression(elementJsonNode.asString())) {
+            return;
+        }
+
         if (!elementJsonNode.isObject()) {
             String actualType = JsonNodeUtils.getJsonNodeType(elementJsonNode);
 
@@ -383,6 +401,10 @@ class ArrayPropertyValidator {
         for (int i = 0; i < arrayJsonNode.size(); i++) {
             JsonNode valueJsonNode = arrayJsonNode.get(i);
 
+            if (valueJsonNode.isString() && TypeValidator.isExpression(valueJsonNode.asString())) {
+                continue;
+            }
+
             boolean matchesAnyType = allowedTypePropertyInfos.stream()
                 .anyMatch(typeInfo -> TypeValidator.isTypeValid(valueJsonNode, typeInfo.type()));
 
@@ -402,6 +424,10 @@ class ArrayPropertyValidator {
         for (int i = 0; i < arrayJsonNode.size(); i++) {
             JsonNode elementJsonNode = arrayJsonNode.get(i);
             String elementPath = propertyPath + "[" + i + "]";
+
+            if (elementJsonNode.isString() && TypeValidator.isExpression(elementJsonNode.asString())) {
+                continue;
+            }
 
             if (!elementJsonNode.isObject()) {
                 String actualType = JsonNodeUtils.getJsonNodeType(elementJsonNode);
