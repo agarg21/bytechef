@@ -15,12 +15,16 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.bytechef.ai.copilot.service.CopilotWorkflowGenerator;
 import com.bytechef.atlas.configuration.domain.WorkflowTask;
 import com.bytechef.atlas.execution.facade.JobFacade;
 import com.bytechef.atlas.execution.service.JobService;
@@ -95,6 +99,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
@@ -181,6 +186,9 @@ class ConnectedUserProjectFacadeIntTest {
 
     @Autowired
     private ConnectedUserProjectFacade connectedUserProjectFacade;
+
+    @MockitoBean
+    private CopilotWorkflowGenerator copilotWorkflowGenerator;
 
     @Autowired
     private ConnectedUserProjectWorkflowManager connectedUserProjectWorkflowManager;
@@ -383,6 +391,31 @@ class ConnectedUserProjectFacadeIntTest {
         assertThat(copilotChatContextDTO.allowedComponentNames())
             .contains(enabledComponentName, "logger")
             .doesNotContain(disabledComponentName, "httpClient");
+    }
+
+    @Test
+    void testCreateProjectWorkflowDeletesThePlaceholderWorkflowWhenGenerationFails() {
+        IllegalStateException generationException = new IllegalStateException(
+            "Workflow generation failed: No AI provider is enabled in environment PRODUCTION");
+
+        doThrow(generationException).when(copilotWorkflowGenerator)
+            .generateWorkflow(anyString(), anyLong(), anyLong(), anyString(), any(), anySet());
+
+        assertThatThrownBy(() -> connectedUserProjectFacade.createProjectWorkflow(
+            externalUserId, "Post new leads to Slack", null, Environment.PRODUCTION, true))
+                .isSameAs(generationException);
+
+        ArgumentCaptor<String> workflowIdCaptor = ArgumentCaptor.forClass(String.class);
+
+        verify(copilotWorkflowGenerator).generateWorkflow(
+            workflowIdCaptor.capture(), anyLong(), anyLong(), anyString(), any(), anySet());
+
+        long projectId = connectedUserProjectWorkflowManager
+            .getOrCreateConnectedUserProject(externalUserId, Environment.PRODUCTION)
+            .getProjectId();
+
+        assertThat(projectWorkflowService.getProjectWorkflowIds(projectId))
+            .doesNotContain(workflowIdCaptor.getValue());
     }
 
     @Test
