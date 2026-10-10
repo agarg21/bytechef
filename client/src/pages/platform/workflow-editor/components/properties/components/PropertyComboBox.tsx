@@ -50,6 +50,7 @@ interface PropertyComboBoxProps {
     defaultValue?: string;
     deletePropertyButton?: ReactNode;
     description?: string;
+    dynamicSwitch?: ReactNode;
     error?: boolean;
     errorMessage?: string;
     handleInputTypeSwitchButtonClick?: () => void;
@@ -88,6 +89,7 @@ const PropertyComboBox = ({
     defaultValue,
     deletePropertyButton,
     description,
+    dynamicSwitch,
     error,
     errorMessage,
     handleInputTypeSwitchButtonClick,
@@ -541,6 +543,8 @@ const PropertyComboBox = ({
                     </div>
 
                     <div className="flex items-center">
+                        {dynamicSwitch}
+
                         {showInputTypeSwitchButton && handleInputTypeSwitchButtonClick && (
                             <PropertyFormulaSwitch formulaMode={false} handleClick={handleInputTypeSwitchButtonClick} />
                         )}
