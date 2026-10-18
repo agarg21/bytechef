@@ -28,10 +28,10 @@ import com.bytechef.platform.ai.tool.TaskTools;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.modelcontextprotocol.server.McpAsyncServer;
 import io.modelcontextprotocol.server.McpServer;
+import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.ai.mcp.McpToolUtils;
 import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStreamableServerTransportProvider;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
@@ -155,6 +155,11 @@ public class ManagementMcpServerConfiguration {
         return createMcpAsyncServer(canonicalWebMvcStreamableHttpServerTransportProvider());
     }
 
+    List<McpServerFeatures.AsyncToolSpecification> toolSpecifications() {
+        return ToolErrorReportingToolSpecifications.toAsyncToolSpecifications(
+            List.of(toolCallbackProvider().getToolCallbacks()));
+    }
+
     ToolCallbackProvider toolCallbackProvider() {
         List<Object> tools = List.of(
             projectTools, projectWorkflowLifecycleTools, componentTools, taskTools, taskDispatcherTools, scriptTools,
@@ -180,7 +185,7 @@ public class ManagementMcpServerConfiguration {
                     .prompts(true)
                     .logging()
                     .build())
-            .tools(McpToolUtils.toAsyncToolSpecifications(toolCallbackProvider().getToolCallbacks()))
+            .tools(toolSpecifications())
             .build();
     }
 }
