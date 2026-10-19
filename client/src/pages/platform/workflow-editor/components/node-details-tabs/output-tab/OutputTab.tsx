@@ -9,6 +9,7 @@ import OutputSchemaDisplay from '@/pages/platform/workflow-editor/components/nod
 import OutputTabNoOutputNotice from '@/pages/platform/workflow-editor/components/node-details-tabs/output-tab/OutputTabNoOutputNotice';
 import OutputTabSampleDataDialog from '@/pages/platform/workflow-editor/components/node-details-tabs/output-tab/OutputTabSampleDataDialog';
 import OutputTabTestErrorAlert from '@/pages/platform/workflow-editor/components/node-details-tabs/output-tab/OutputTabTestErrorAlert';
+import OutputTabTruncatedOutputNotice from '@/pages/platform/workflow-editor/components/node-details-tabs/output-tab/OutputTabTruncatedOutputNotice';
 import DialogLoader from '@/shared/components/DialogLoader';
 import {TriggerType} from '@/shared/middleware/platform/configuration';
 import {NodeDataType, PropertyAllType} from '@/shared/types';
@@ -30,6 +31,14 @@ interface OutputTabProps {
     variablePropertiesDefined?: boolean;
     workflowId: string;
 }
+
+const getOperationLabel = (clusterElementType: string | undefined, currentNode: NodeDataType) => {
+    if (clusterElementType === 'tools') {
+        return 'Tool';
+    }
+
+    return currentNode.trigger ? 'Trigger' : 'Action';
+};
 
 const OutputTab = ({
     clusterElementType,
@@ -57,6 +66,7 @@ const OutputTab = ({
         outputSchema,
         placeholder,
         sampleOutput,
+        sampleOutputTruncated,
         saveClusterElementTestOutputMutationPending,
         saveWorkflowNodeTestOutputMutation,
         saveWorkflowNodeTestOutputMutationPending,
@@ -80,7 +90,7 @@ const OutputTab = ({
         workflowId,
     });
 
-    const operationLabel = clusterElementType === 'tools' ? 'Tool' : currentNode.trigger ? 'Trigger' : 'Action';
+    const operationLabel = getOperationLabel(clusterElementType, currentNode);
 
     if (!testing && workflowNodeOutputIsFetching) {
         return <></>;
@@ -123,12 +133,18 @@ const OutputTab = ({
                             )
                         }
                         testNotice={
-                            testReturnedNoOutput && (
-                                <OutputTabNoOutputNotice
-                                    className="mb-3"
-                                    onDismiss={handleNoOutputNoticeDismiss}
-                                    operationLabel={operationLabel}
-                                />
+                            (testReturnedNoOutput || sampleOutputTruncated) && (
+                                <>
+                                    {testReturnedNoOutput && (
+                                        <OutputTabNoOutputNotice
+                                            className="mb-3"
+                                            onDismiss={handleNoOutputNoticeDismiss}
+                                            operationLabel={operationLabel}
+                                        />
+                                    )}
+
+                                    {sampleOutputTruncated && <OutputTabTruncatedOutputNotice className="mb-3" />}
+                                </>
                             )
                         }
                         testOutputResponse={testOutputResponse}
