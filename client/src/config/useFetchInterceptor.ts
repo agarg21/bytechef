@@ -81,6 +81,12 @@ function isAuthenticationError(error: GraphQlErrorI): boolean {
     return error.extensions?.errorCode === AUTHENTICATION_REQUIRED_ERROR_CODE;
 }
 
+const SILENT_GRAPHQL_ERROR_CODES = new Set(['TITLE_GENERATION_FAILED']);
+
+function isHandledInlineGraphQlError(error: GraphQlErrorI): boolean {
+    return isInlineTestOutputGraphQlError(error) || SILENT_GRAPHQL_ERROR_CODES.has(error.extensions?.errorCode ?? '');
+}
+
 function isAiHubToolApprovalConflictError(error: GraphQlErrorI): boolean {
     return error.extensions?.errorCode === 'CONFLICT' && error.path?.[0] === 'resolveAiHubToolApproval';
 }
@@ -227,7 +233,7 @@ export default function useFetchInterceptor() {
                                 return;
                             }
 
-                            if (errors.length && errors.every(isInlineTestOutputGraphQlError)) {
+                            if (errors.length && errors.every(isHandledInlineGraphQlError)) {
                                 return;
                             }
 
