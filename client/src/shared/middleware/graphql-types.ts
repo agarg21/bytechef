@@ -1724,6 +1724,7 @@ export type Mutation = {
   deleteSharedProject: Scalars['Boolean']['output'];
   deleteSharedWorkflow: Scalars['Boolean']['output'];
   deleteUser: Scalars['Boolean']['output'];
+  deleteWebSearchProvider?: Maybe<Scalars['Boolean']['output']>;
   deleteWorkspaceApiKey: Scalars['Boolean']['output'];
   deleteWorkspaceMcpServer?: Maybe<Scalars['Boolean']['output']>;
   disconnectConnection: Scalars['Boolean']['output'];
@@ -1736,6 +1737,7 @@ export type Mutation = {
   enableConnectedUserMcpTool?: Maybe<Scalars['Boolean']['output']>;
   enableConnectedUserProjectWorkflow?: Maybe<Scalars['Boolean']['output']>;
   enableCustomComponent: Scalars['Boolean']['output'];
+  enableWebSearchProvider?: Maybe<Scalars['Boolean']['output']>;
   exportSharedProject?: Maybe<Scalars['Boolean']['output']>;
   exportSharedWorkflow: Scalars['Boolean']['output'];
   generateFromDocumentation: ApiConnector;
@@ -1763,6 +1765,7 @@ export type Mutation = {
   startGenerateForEndpoints: GenerationJobStatus;
   startGenerateFromDocumentationPreview: GenerationJobStatus;
   testClusterElementScript: ScriptTestExecution;
+  testWebSearchProvider: WebSearchProviderTestResult;
   testWorkflowNodeScript: ScriptTestExecution;
   updateA2aProject?: Maybe<A2aProject>;
   updateA2aProjectWorkflowEnabled?: Maybe<A2aProjectWorkflow>;
@@ -1818,6 +1821,7 @@ export type Mutation = {
   updateMcpServerUrl: Scalars['String']['output'];
   updateMcpTool?: Maybe<McpTool>;
   updateUser: AdminUser;
+  updateWebSearchProvider?: Maybe<Scalars['Boolean']['output']>;
   updateWorkspaceApiKey: Scalars['Boolean']['output'];
   updateWorkspaceMcpToolEnabled?: Maybe<McpTool>;
 };
@@ -2211,6 +2215,12 @@ export type MutationDeleteUserArgs = {
 };
 
 
+export type MutationDeleteWebSearchProviderArgs = {
+  environment: Scalars['ID']['input'];
+  name: Scalars['String']['input'];
+};
+
+
 export type MutationDeleteWorkspaceApiKeyArgs = {
   apiKeyId: Scalars['ID']['input'];
 };
@@ -2274,6 +2284,13 @@ export type MutationEnableConnectedUserProjectWorkflowArgs = {
 export type MutationEnableCustomComponentArgs = {
   enable: Scalars['Boolean']['input'];
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationEnableWebSearchProviderArgs = {
+  enabled: Scalars['Boolean']['input'];
+  environment: Scalars['ID']['input'];
+  name: Scalars['String']['input'];
 };
 
 
@@ -2444,6 +2461,14 @@ export type MutationTestClusterElementScriptArgs = {
   inputParameters?: InputMaybe<Scalars['Map']['input']>;
   workflowId: Scalars['String']['input'];
   workflowNodeName: Scalars['String']['input'];
+};
+
+
+export type MutationTestWebSearchProviderArgs = {
+  apiKey?: InputMaybe<Scalars['String']['input']>;
+  baseUrl?: InputMaybe<Scalars['String']['input']>;
+  environment: Scalars['ID']['input'];
+  name: Scalars['String']['input'];
 };
 
 
@@ -2732,6 +2757,14 @@ export type MutationUpdateMcpToolArgs = {
 export type MutationUpdateUserArgs = {
   login: Scalars['String']['input'];
   role: Scalars['String']['input'];
+};
+
+
+export type MutationUpdateWebSearchProviderArgs = {
+  apiKey?: InputMaybe<Scalars['String']['input']>;
+  baseUrl?: InputMaybe<Scalars['String']['input']>;
+  environment: Scalars['ID']['input'];
+  name: Scalars['String']['input'];
 };
 
 
@@ -3199,6 +3232,7 @@ export type Query = {
   users?: Maybe<AdminUserPage>;
   validateWorkflow: WorkflowValidationResult;
   validateWorkflowById: WorkflowValidationResult;
+  webSearchProviders: Array<WebSearchProvider>;
   workflowNodeComponentConnections: Array<ComponentConnection>;
   workflowNodeMissingRequiredProperties: Array<Scalars['String']['output']>;
   workflowNodeScriptInput?: Maybe<Scalars['Map']['output']>;
@@ -3931,6 +3965,11 @@ export type QueryValidateWorkflowByIdArgs = {
 };
 
 
+export type QueryWebSearchProvidersArgs = {
+  environment: Scalars['ID']['input'];
+};
+
+
 export type QueryWorkflowNodeComponentConnectionsArgs = {
   workflowId: Scalars['String']['input'];
   workflowNodeName: Scalars['String']['input'];
@@ -4274,6 +4313,25 @@ export type UpdateRowInput = {
   id: Scalars['ID']['input'];
   tableId: Scalars['ID']['input'];
   values: Scalars['Map']['input'];
+};
+
+export type WebSearchProvider = {
+  __typename?: 'WebSearchProvider';
+  apiKeyFromProperties: Scalars['Boolean']['output'];
+  baseUrl: Scalars['String']['output'];
+  defaultBaseUrl: Scalars['String']['output'];
+  description: Scalars['String']['output'];
+  enabled: Scalars['Boolean']['output'];
+  icon?: Maybe<Scalars['String']['output']>;
+  label: Scalars['String']['output'];
+  maskedApiKey?: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+};
+
+export type WebSearchProviderTestResult = {
+  __typename?: 'WebSearchProviderTestResult';
+  errorMessage?: Maybe<Scalars['String']['output']>;
+  success: Scalars['Boolean']['output'];
 };
 
 export type Workflow = {
