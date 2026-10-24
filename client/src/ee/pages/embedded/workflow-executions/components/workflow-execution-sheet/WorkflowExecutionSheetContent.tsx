@@ -9,6 +9,7 @@ import WorkflowExecutionsHeader from '@/shared/components/workflow-executions/Wo
 import WorkflowExecutionsTabsPanel from '@/shared/components/workflow-executions/WorkflowExecutionsTabsPanel';
 import WorkflowTaskExecutionItem from '@/shared/components/workflow-executions/WorkflowTaskExecutionItem';
 import WorkflowTriggerExecutionItem from '@/shared/components/workflow-executions/WorkflowTriggerExecutionItem';
+import {isClusterElementCallTaskExecution} from '@/shared/components/workflow-executions/util/toClusterElementCallTaskExecutions';
 import {EXECUTIONS_PANEL_HEADER_CLASS_NAME} from '@/shared/components/workflow-executions/workflowExecutionsPanelClassNames';
 import {Job, JobStatusEnum, TaskExecution, TriggerExecution} from '@/shared/middleware/automation/workflow/execution';
 import {TabValueType} from '@/shared/types';
@@ -44,7 +45,11 @@ const WorkflowExecutionSheetContent = ({job, triggerExecution}: {job: Job; trigg
 
     const isTriggerExecution = selectedItem?.id === triggerExecution?.id;
 
-    const isTaskSelected = !!selectedItem && !isTriggerExecution && selectedItem.id !== undefined;
+    const isTaskSelected =
+        !!selectedItem &&
+        !isTriggerExecution &&
+        selectedItem.id !== undefined &&
+        !isClusterElementCallTaskExecution(selectedItem);
 
     const {data: selectedTaskExecution, isLoading: selectedTaskExecutionLoading} =
         useGetWorkflowExecutionTaskExecutionQuery(
