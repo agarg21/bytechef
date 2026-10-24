@@ -77,7 +77,9 @@ function clearProgressSnapshot() {
  * completes coordinator-side and never emits a task lifecycle SSE event, so without this pass its node -- and every
  * edge touching it -- would stay uncolored after a run even though it executed. The whole execution tree is walked,
  * not just the top level: a condition inside a loop iteration or another condition's branch is exactly such a
- * dispatcher. Streamed states win — only missing (or still-RUNNING) entries are filled in.
+ * dispatcher. Streamed statuses win: only missing (or still-RUNNING) entries are filled in, and a finished node only
+ * takes the result's duration, which adds up a node that ran more than once -- unless the result says one of its
+ * visits failed, which outranks a streamed COMPLETED.
  */
 function backfillNodeStatesFromResult(workflowTestExecution: WorkflowTestExecution) {
     const {setWorkflowTestNodeState, workflowTestNodeStates} = useWorkflowEditorStore.getState();
@@ -85,9 +87,27 @@ function backfillNodeStatesFromResult(workflowTestExecution: WorkflowTestExecuti
     const resultNodeStates = buildNodeStatesFromTaskExecutions(workflowTestExecution.job?.taskExecutions, false);
 
     for (const [name, nodeState] of Object.entries(resultNodeStates)) {
-        const existingStatus = workflowTestNodeStates[name]?.status;
+        const existingNodeState = workflowTestNodeStates[name];
 
-        if (existingStatus === 'COMPLETED' || existingStatus === 'FAILED') {
+        if (existingNodeState?.status === 'COMPLETED' && nodeState.status === 'FAILED') {
+            setWorkflowTestNodeState(name, {
+                ...existingNodeState,
+                durationMillis: nodeState.durationMillis ?? existingNodeState.durationMillis,
+                error: nodeState.error,
+                status: 'FAILED',
+            });
+
+            continue;
+        }
+
+        if (existingNodeState?.status === 'COMPLETED' || existingNodeState?.status === 'FAILED') {
+            if (
+                nodeState.durationMillis !== undefined &&
+                nodeState.durationMillis !== existingNodeState.durationMillis
+            ) {
+                setWorkflowTestNodeState(name, {...existingNodeState, durationMillis: nodeState.durationMillis});
+            }
+
             continue;
         }
 
@@ -120,16 +140,49 @@ function backfillNodeStatesFromResult(workflowTestExecution: WorkflowTestExecuti
     }
 }
 
-function handleClusterElementCall(data: unknown) {
+function handleClusterElementCall(data: unknown): string | undefined {
     const payload = parseTaskLifecyclePayload(data);
 
     if (!payload?.name) {
-        return;
+        return undefined;
     }
 
     const {setWorkflowTestNodeState, workflowTestNodeStates} = useWorkflowEditorStore.getState();
 
     setWorkflowTestNodeState(payload.name, toClusterElementNodeState(payload, workflowTestNodeStates[payload.name]));
+
+    return payload.name;
+}
+
+/**
+ * Colors nodes from a `progress` snapshot. A task dispatcher that runs inside the coordinator emits no task lifecycle
+ * event, so a snapshot is the only live source for it. A node its own task events track is left to them: the snapshot
+ * only fills in a node that has no state yet or whose state an earlier snapshot set.
+ */
+function applyProgressNodeStates(workflowTestExecution: WorkflowTestExecution, progressOwnedNodeNames: Set<string>) {
+    const {setWorkflowTestNodeState, workflowTestNodeStates} = useWorkflowEditorStore.getState();
+
+    const progressNodeStates = buildNodeStatesFromTaskExecutions(workflowTestExecution.job?.taskExecutions, true);
+
+    for (const [name, nodeState] of Object.entries(progressNodeStates)) {
+        const existingNodeState = workflowTestNodeStates[name];
+
+        if (existingNodeState && !progressOwnedNodeNames.has(name)) {
+            continue;
+        }
+
+        progressOwnedNodeNames.add(name);
+
+        if (
+            existingNodeState?.status === nodeState.status &&
+            existingNodeState.durationMillis === nodeState.durationMillis &&
+            existingNodeState.error === nodeState.error
+        ) {
+            continue;
+        }
+
+        setWorkflowTestNodeState(name, nodeState);
+    }
 }
 
 function parseTaskLifecyclePayload(data: unknown): TaskLifecyclePayloadI | undefined {
@@ -163,6 +216,7 @@ export function useWorkflowTestStream({
 }: UseWorkflowTestStreamProps): UseWorkflowTestStreamResultI {
     const [streamRequest, setStreamRequest] = useState<SSERequestType>(null);
 
+    const progressOwnedNodeNamesRef = useRef(new Set<string>());
     const questionShownRef = useRef(false);
 
     const currentEnvironmentId = useEnvironmentStore((state) => state.currentEnvironmentId);
@@ -183,6 +237,12 @@ export function useWorkflowTestStream({
     );
 
     const {getPersistedJobId, persistJobId} = usePersistJobId(workflowId, currentEnvironmentId);
+
+    const releaseProgressOwnership = (name: string | undefined) => {
+        if (name) {
+            progressOwnedNodeNamesRef.current.delete(name);
+        }
+    };
 
     const {close: closeSSE, error} = useSSE<WorkflowTestExecution>(streamRequest, {
         eventHandlers: {
@@ -211,9 +271,9 @@ export function useWorkflowTestStream({
 
                 setLastAssistantMessageContent(`${formatAskUserQuestionMessage(questionEvent)}\n\n`);
             },
-            cluster_element_completed: (data) => handleClusterElementCall(data),
-            cluster_element_failed: (data) => handleClusterElementCall(data),
-            cluster_element_started: (data) => handleClusterElementCall(data),
+            cluster_element_completed: (data) => releaseProgressOwnership(handleClusterElementCall(data)),
+            cluster_element_failed: (data) => releaseProgressOwnership(handleClusterElementCall(data)),
+            cluster_element_started: (data) => releaseProgressOwnership(handleClusterElementCall(data)),
             error: (data) => {
                 clearRunningNodeStates();
                 setWorkflowIsRunning(false);
@@ -242,7 +302,10 @@ export function useWorkflowTestStream({
                 try {
                     const progressData = typeof data === 'string' ? JSON.parse(data) : data;
 
-                    setWorkflowTestExecution(WorkflowTestExecutionFromJSON(progressData));
+                    const workflowTestExecution = WorkflowTestExecutionFromJSON(progressData);
+
+                    setWorkflowTestExecution(workflowTestExecution);
+                    applyProgressNodeStates(workflowTestExecution, progressOwnedNodeNamesRef.current);
                 } catch (error) {
                     console.error('Failed to parse workflow test execution progress:', error);
                 }
@@ -286,6 +349,7 @@ export function useWorkflowTestStream({
 
                     resetWorkflowTestNodeStates(workflowId);
 
+                    progressOwnedNodeNamesRef.current.clear();
                     questionShownRef.current = false;
 
                     persistJobId(jobId);
@@ -315,6 +379,8 @@ export function useWorkflowTestStream({
                 const payload = parseTaskLifecyclePayload(data);
 
                 if (payload?.name) {
+                    releaseProgressOwnership(payload.name);
+
                     const durationMillis = computeDurationMillis(payload.startDate, payload.endDate);
 
                     setWorkflowTestNodeState(payload.name, {
@@ -327,6 +393,8 @@ export function useWorkflowTestStream({
                 const payload = parseTaskLifecyclePayload(data);
 
                 if (payload?.name) {
+                    releaseProgressOwnership(payload.name);
+
                     const durationMillis = computeDurationMillis(payload.startDate, payload.endDate);
 
                     setWorkflowTestNodeState(payload.name, {
@@ -340,11 +408,15 @@ export function useWorkflowTestStream({
                 const payload = parseTaskLifecyclePayload(data);
 
                 if (payload?.name) {
+                    releaseProgressOwnership(payload.name);
+
                     setWorkflowTestNodeState(payload.name, {status: 'RUNNING'});
                 }
             },
         },
         onClose: () => {
+            clearRunningNodeStates();
+            clearProgressSnapshot();
             setWorkflowIsRunning(false);
             setStreamRequest(null);
 
