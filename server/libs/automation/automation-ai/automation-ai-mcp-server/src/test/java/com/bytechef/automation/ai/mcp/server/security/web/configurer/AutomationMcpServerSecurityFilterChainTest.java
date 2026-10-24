@@ -23,6 +23,7 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 
 import com.bytechef.automation.ai.mcp.service.WorkspaceMcpServerService;
+import com.bytechef.automation.configuration.service.PermissionService;
 import com.bytechef.automation.configuration.service.WorkspaceApiKeyService;
 import com.bytechef.platform.configuration.domain.Environment;
 import com.bytechef.platform.constant.PlatformType;
@@ -236,6 +237,15 @@ class AutomationMcpServerSecurityFilterChainTest {
         }
 
         @Bean
+        PermissionService permissionService() {
+            PermissionService permissionService = mock(PermissionService.class);
+
+            when(permissionService.getMyWorkspaceRole(anyLong())).thenReturn("EDITOR");
+
+            return permissionService;
+        }
+
+        @Bean
         WorkspaceApiKeyService workspaceApiKeyService() {
             WorkspaceApiKeyService workspaceApiKeyService = mock(WorkspaceApiKeyService.class);
 
@@ -264,7 +274,8 @@ class AutomationMcpServerSecurityFilterChainTest {
         @Bean
         SecurityFilterChain securityFilterChain(
             HttpSecurity http, ApiKeyService apiKeyService, AuthorityService authorityService,
-            McpServerService mcpServerService, UserService userService, WorkspaceApiKeyService workspaceApiKeyService,
+            McpServerService mcpServerService, PermissionService permissionService, UserService userService,
+            WorkspaceApiKeyService workspaceApiKeyService,
             WorkspaceMcpServerService workspaceMcpServerService) throws Exception {
 
             return http
@@ -273,7 +284,7 @@ class AutomationMcpServerSecurityFilterChainTest {
                 .with(
                     new AutomationMcpServerSecurityConfigurer(
                         apiKeyService, authorityService, () -> List.of(Environment.values()), mcpServerService,
-                        userService, workspaceApiKeyService, workspaceMcpServerService),
+                        permissionService, userService, workspaceApiKeyService, workspaceMcpServerService),
                     Customizer.withDefaults())
                 .build();
         }
