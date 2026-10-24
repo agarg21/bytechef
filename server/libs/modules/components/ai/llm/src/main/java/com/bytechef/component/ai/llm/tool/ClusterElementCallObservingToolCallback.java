@@ -118,6 +118,8 @@ public class ClusterElementCallObservingToolCallback implements ToolCallback {
         try {
             result = ClusterElementCallScope.callWith(ref, call);
         } catch (RuntimeException exception) {
+            recorder.claimFailure(taskExecutionId, exception);
+
             String message = exception.getMessage();
 
             recorder.callFailed(
