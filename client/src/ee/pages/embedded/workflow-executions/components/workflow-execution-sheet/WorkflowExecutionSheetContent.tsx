@@ -2,15 +2,19 @@ import {Accordion} from '@/components/ui/accordion';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable';
 import {ScrollArea} from '@/components/ui/scroll-area';
 import {useGetWorkflowExecutionTaskExecutionQuery} from '@/ee/shared/queries/embedded/workflowExecutions.queries';
+import {TruncatedLabel} from '@/shared/components/workflow-executions/SubflowExecutionBreadcrumb';
 import WorkflowExecutionContent from '@/shared/components/workflow-executions/WorkflowExecutionContent';
 import WorkflowExecutionsAccordionItem from '@/shared/components/workflow-executions/WorkflowExecutionsAccordionItem';
 import WorkflowExecutionsHeader from '@/shared/components/workflow-executions/WorkflowExecutionsHeader';
 import WorkflowExecutionsTabsPanel from '@/shared/components/workflow-executions/WorkflowExecutionsTabsPanel';
 import WorkflowTaskExecutionItem from '@/shared/components/workflow-executions/WorkflowTaskExecutionItem';
 import WorkflowTriggerExecutionItem from '@/shared/components/workflow-executions/WorkflowTriggerExecutionItem';
+import {EXECUTIONS_PANEL_HEADER_CLASS_NAME} from '@/shared/components/workflow-executions/workflowExecutionsPanelClassNames';
 import {Job, JobStatusEnum, TaskExecution, TriggerExecution} from '@/shared/middleware/automation/workflow/execution';
 import {TabValueType} from '@/shared/types';
+import {WorkflowIcon} from 'lucide-react';
 import {useCallback, useState} from 'react';
+import {twMerge} from 'tailwind-merge';
 import {useShallow} from 'zustand/react/shallow';
 
 import useWorkflowExecutionSheetStore from '../../stores/useWorkflowExecutionSheetStore';
@@ -65,6 +69,17 @@ const WorkflowExecutionSheetContent = ({job, triggerExecution}: {job: Job; trigg
                         groupResizeBehavior="preserve-pixel-size"
                         minSize={15}
                     >
+                        {job.label && (
+                            <div className={twMerge(EXECUTIONS_PANEL_HEADER_CLASS_NAME, 'gap-1')}>
+                                <WorkflowIcon className="size-3 shrink-0 text-content-neutral-primary" />
+
+                                <TruncatedLabel
+                                    className="text-xs leading-4 font-medium text-content-neutral-primary"
+                                    label={job.label}
+                                />
+                            </div>
+                        )}
+
                         <ScrollArea className="mb-4 h-full pr-4">
                             <Accordion
                                 className="ml-2 space-y-2 pb-4"
