@@ -1,6 +1,8 @@
 import {useCopilotStore} from '@/shared/components/copilot/stores/useCopilotStore';
 import {getErrorItem, getInitialSelectedItem} from '@/shared/components/workflow-executions/WorkflowExecutionsUtils';
+import toClusterElementCallTaskExecutions from '@/shared/components/workflow-executions/util/toClusterElementCallTaskExecutions';
 import {ExecutionError} from '@/shared/middleware/automation/workflow/execution';
+import {TaskExecution as PlatformTaskExecution} from '@/shared/middleware/platform/workflow/execution';
 import {
     Job,
     JobStatusEnum,
@@ -35,8 +37,8 @@ type UseWorkflowExecutionsReturnType = {
 const RUNNING_JOB_STATUSES: JobStatusEnum[] = [JobStatusEnum.Created, JobStatusEnum.Started];
 
 /**
- * Finds the task execution with the given id anywhere in the tree -- condition/loop children, loop iterations and
- * subflow child jobs included.
+ * Finds the task execution with the given id anywhere in the tree -- condition/loop children, cluster element call
+ * rows, loop iterations and subflow child jobs included.
  */
 function findTaskExecution(taskExecutions: TaskExecution[], id: string): TaskExecution | undefined {
     for (const taskExecution of taskExecutions) {
@@ -45,7 +47,9 @@ function findTaskExecution(taskExecutions: TaskExecution[], id: string): TaskExe
         }
 
         const nestedTaskExecutions = [
-            ...(taskExecution.children ?? []),
+            ...(taskExecution.children?.length
+                ? taskExecution.children
+                : (toClusterElementCallTaskExecutions(taskExecution as PlatformTaskExecution) as TaskExecution[])),
             ...(taskExecution.iterations ?? []).flat(),
             ...(taskExecution.childJob?.taskExecutions ?? []),
         ];
