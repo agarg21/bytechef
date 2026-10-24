@@ -149,6 +149,29 @@ class ClusterElementCallsTaskExecutionPostOutputProcessorTest {
     }
 
     @Test
+    void testStoresOutcomeRecordsWithTheTaskExecution() {
+        TaskExecution taskExecution = createTaskExecution();
+
+        String details = "{\"side\":\"INPUT\",\"matchCount\":2}";
+
+        recorder.recordOutcome(
+            1, 10, "guardrails_1", "guardrails", null, ClusterElementCallRecord.Status.BLOCKED, details, null);
+
+        processor.onTaskExecutionFinished(taskExecution);
+
+        List<Map<String, ?>> records = getRecordMaps(taskExecution);
+
+        assertEquals(1, records.size());
+
+        ClusterElementCallRecord record = ClusterElementCallRecord.fromMap(records.get(0));
+
+        assertEquals(ClusterElementCallRecord.Status.BLOCKED, record.status());
+        assertEquals(details, record.output());
+        assertEquals(Status.BLOCKED, getCalls(taskExecution).get("guardrails_1")
+            .status());
+    }
+
+    @Test
     void testLeavesOutputUnchanged() {
         Object output = Map.of("response", "text");
 

@@ -560,6 +560,90 @@ public class TestWorkflowExecutorTest {
     @SuppressWarnings({
         "rawtypes", "unchecked"
     })
+    void testForwardsOutcomeEventsUnderTheirOwnNames() throws Exception {
+        when(workflowService.getWorkflow(anyString())).thenReturn(workflow);
+        when(workflow.getExtensions(anyString(), any(), anyList())).thenReturn(Collections.emptyList());
+
+        WorkflowTestConfiguration workflowTestConfiguration = new WorkflowTestConfiguration(
+            ENVIRONMENT_ID, Map.of(), WORKFLOW_ID, List.of());
+
+        when(workflowTestConfigurationService.fetchWorkflowTestConfiguration(WORKFLOW_ID, ENVIRONMENT_ID))
+            .thenReturn(Optional.of(workflowTestConfiguration));
+
+        Job job = mock(Job.class);
+
+        ClusterElementCallRecorder clusterElementCallRecorder = ClusterElementCallRecorder.getInstance();
+
+        when(jobSyncExecutor.startJob(any(JobParametersDTO.class))).thenReturn(7L);
+        when(jobSyncExecutor.awaitJob(anyLong(), any(Boolean.class), any())).thenAnswer(invocation -> {
+            clusterElementCallRecorder.recordOutcome(
+                7L, 70L, "guardrails_1", "guardrails", null, ClusterElementCallRecord.Status.BLOCKED,
+                "{\"side\":\"INPUT\",\"matchCount\":2}", null);
+            clusterElementCallRecorder.recordOutcome(
+                7L, 70L, "guardrails_2", "guardrails", null, ClusterElementCallRecord.Status.REDACTED,
+                "{\"side\":\"OUTPUT\",\"maskCount\":3}", null);
+            clusterElementCallRecorder.recordOutcome(
+                7L, 70L, "guardrails_3", "guardrails", null, ClusterElementCallRecord.Status.WITHHELD,
+                "{\"side\":\"OUTPUT\",\"reason\":\"unsafe\"}", null);
+
+            return job;
+        });
+        when(job.getId()).thenReturn(7L);
+
+        AutoCloseable mockHandle = mock(AutoCloseable.class);
+
+        when(jobSyncExecutor.addJobStatusListener(anyLong(), any())).thenReturn(mockHandle);
+        when(jobSyncExecutor.addTaskStartedListener(anyLong(), any())).thenReturn(mockHandle);
+        when(jobSyncExecutor.addTaskExecutionCompleteListener(anyLong(), any())).thenReturn(mockHandle);
+        when(jobSyncExecutor.addErrorListener(anyLong(), any())).thenReturn(mockHandle);
+        when(jobSyncExecutor.addSseStreamBridge(anyLong(), any())).thenReturn(mockHandle);
+
+        SseStreamBridge mockSseStreamBridge = mock(SseStreamBridge.class);
+
+        try {
+            testWorkflowExecutor.executeAsync(
+                WORKFLOW_ID, Map.of(), ENVIRONMENT_ID, key -> {}, key -> mockSseStreamBridge,
+                (key, future) -> future.join(), key -> {});
+        } finally {
+            clusterElementCallRecorder.drain(70L);
+        }
+
+        ArgumentCaptor<Map> eventCaptor = ArgumentCaptor.forClass(Map.class);
+
+        verify(mockSseStreamBridge, org.mockito.Mockito.atLeastOnce()).onEvent(eventCaptor.capture());
+
+        List<Map> clusterElementEvents = eventCaptor.getAllValues()
+            .stream()
+            .filter(event -> String.valueOf(event.get("event"))
+                .startsWith("cluster_element_"))
+            .toList();
+
+        assertThat(clusterElementEvents).extracting(event -> event.get("event"))
+            .containsExactly("cluster_element_blocked", "cluster_element_redacted", "cluster_element_withheld");
+
+        Map<String, Object> blockedPayload = (Map<String, Object>) clusterElementEvents.get(0)
+            .get("payload");
+
+        assertThat(blockedPayload).containsEntry("callStatus", "BLOCKED")
+            .containsEntry("output", "{\"side\":\"INPUT\",\"matchCount\":2}");
+
+        Map<String, Object> redactedPayload = (Map<String, Object>) clusterElementEvents.get(1)
+            .get("payload");
+
+        assertThat(redactedPayload).containsEntry("callStatus", "REDACTED")
+            .containsEntry("output", "{\"side\":\"OUTPUT\",\"maskCount\":3}");
+
+        Map<String, Object> withheldPayload = (Map<String, Object>) clusterElementEvents.get(2)
+            .get("payload");
+
+        assertThat(withheldPayload).containsEntry("callStatus", "WITHHELD")
+            .containsEntry("output", "{\"side\":\"OUTPUT\",\"reason\":\"unsafe\"}");
+    }
+
+    @Test
+    @SuppressWarnings({
+        "rawtypes", "unchecked"
+    })
     void testCallEventsCarryCappedValues() throws Exception {
         when(workflowService.getWorkflow(anyString())).thenReturn(workflow);
         when(workflow.getExtensions(anyString(), any(), anyList())).thenReturn(Collections.emptyList());
