@@ -9,7 +9,10 @@ import WorkflowExecutionsHeader from '@/shared/components/workflow-executions/Wo
 import WorkflowExecutionsTabsPanel from '@/shared/components/workflow-executions/WorkflowExecutionsTabsPanel';
 import WorkflowTaskExecutionItem from '@/shared/components/workflow-executions/WorkflowTaskExecutionItem';
 import WorkflowTriggerExecutionItem from '@/shared/components/workflow-executions/WorkflowTriggerExecutionItem';
-import {isClusterElementCallTaskExecution} from '@/shared/components/workflow-executions/util/toClusterElementCallTaskExecutions';
+import {
+    getClusterElementCallOutcome,
+    isClusterElementCallTaskExecution,
+} from '@/shared/components/workflow-executions/util/toClusterElementCallTaskExecutions';
 import {EXECUTIONS_PANEL_HEADER_CLASS_NAME} from '@/shared/components/workflow-executions/workflowExecutionsPanelClassNames';
 import {Job, JobStatusEnum, TaskExecution, TriggerExecution} from '@/shared/middleware/automation/workflow/execution';
 import {TabValueType} from '@/shared/types';
@@ -39,7 +42,7 @@ const WorkflowExecutionSheetContent = ({job, triggerExecution}: {job: Job; trigg
     const taskExecutions = job?.taskExecutions || [];
 
     const onTaskClick = useCallback((taskExecution: TaskExecution | TriggerExecution) => {
-        setActiveTab(taskExecution.error ? 'error' : 'input');
+        setActiveTab(taskExecution.error ? 'error' : getClusterElementCallOutcome(taskExecution) ? 'details' : 'input');
         setSelectedItem(taskExecution);
     }, []);
 

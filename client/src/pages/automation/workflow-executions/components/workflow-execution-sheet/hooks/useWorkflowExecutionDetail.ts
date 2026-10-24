@@ -1,4 +1,5 @@
 import {groupTaskExecutionAttempts} from '@/shared/components/workflow-executions/util/groupTaskExecutionAttempts';
+import {getClusterElementCallOutcome} from '@/shared/components/workflow-executions/util/toClusterElementCallTaskExecutions';
 import {getWorkflowStatusType} from '@/shared/components/workflow-executions/util/workflowExecution-utils';
 import {Job, JobStatusEnum, TaskExecution, TriggerExecution} from '@/shared/middleware/automation/workflow/execution';
 import {useGetProjectWorkflowExecutionQuery} from '@/shared/queries/automation/workflowExecutions.queries';
@@ -86,7 +87,9 @@ const useWorkflowExecutionDetail = (workflowExecutionId: number, enabled: boolea
     const isTriggerExecution = selectedItem?.id === triggerExecution?.id;
 
     const handleTaskClick = (taskExecution: TaskExecution | TriggerExecution) => {
-        setActiveTab(taskExecution.error ? 'error' : 'output');
+        setActiveTab(
+            taskExecution.error ? 'error' : getClusterElementCallOutcome(taskExecution) ? 'details' : 'output'
+        );
 
         setSelectedItem(taskExecution);
     };
