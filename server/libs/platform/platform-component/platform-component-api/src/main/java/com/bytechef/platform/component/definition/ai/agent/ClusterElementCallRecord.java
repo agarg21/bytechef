@@ -133,6 +133,6 @@ public record ClusterElementCallRecord(
     }
 
     public enum Status {
-        STARTED, SUSPENDED, COMPLETED, FAILED
+        STARTED, SUSPENDED, COMPLETED, FAILED, BLOCKED, REDACTED, WITHHELD
     }
 }
