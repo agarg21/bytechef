@@ -33,7 +33,7 @@ interface WorkflowExecutionsTestOutputProps {
 const WorkflowExecutionsTestOutput = ({
     onCloseClick,
     onEditSubflowClick,
-    resizablePanelSize = 300,
+    resizablePanelSize = 380,
     workflowIsRunning,
     workflowTestExecution,
 }: WorkflowExecutionsTestOutputProps) => {
