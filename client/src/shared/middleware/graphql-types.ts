@@ -915,6 +915,8 @@ export type CreateCustomRoleInput = {
   name: Scalars['String']['input'];
   /** Permission scope names to grant (must be names registered by the server's PermissionScopeProvider SPI) */
   scopes: Array<Scalars['String']['input']>;
+  /** The members the role is for; AUTOMATION when omitted. Fixed once the role is created. */
+  side?: InputMaybe<PermissionScopeSide>;
 };
 
 export type CreateDataTableInput = {
@@ -1024,6 +1026,8 @@ export type CustomRole = {
   name: Scalars['String']['output'];
   /** Permission scope names granted by this role (e.g., WORKFLOW_VIEW, PROJECT_CREATE) */
   scopes: Array<Scalars['String']['output']>;
+  /** Whether the role is assigned to workspace members (AUTOMATION) or embedded members (EMBEDDED) */
+  side: PermissionScopeSide;
 };
 
 export type DataTable = {
@@ -1762,9 +1766,12 @@ export type Mutation = {
   __typename?: 'Mutation';
   _placeholder?: Maybe<Scalars['Boolean']['output']>;
   addDataTableColumn: Scalars['Boolean']['output'];
-  /** Add a user as an embedded member with a built-in role. */
+  /**
+   * Add a user as an embedded member. Supply exactly one of `role` or `customRoleId`; a custom role must grant at
+   * least one embedded scope.
+   */
   addEmbeddedUser: EmbeddedUser;
-  /** Add an existing user, found by email, as an embedded member with a built-in role. */
+  /** Add an existing user, found by email, as an embedded member. Supply exactly one of `role` or `customRoleId`. */
   addEmbeddedUserByEmail: EmbeddedUser;
   /**
    * Add a user to a workspace. Requires the WORKSPACE_MEMBER_MANAGE scope in every environment of the
@@ -1938,7 +1945,7 @@ export type Mutation = {
   saveWorkflowTestConfigurationConnection?: Maybe<Scalars['Boolean']['output']>;
   /** Set a connection's reach. PRIVATE withholds it from the workspace; WORKSPACE shares it. ORGANIZATION is set through createOrganizationConnection instead and is rejected here. Narrowing to PRIVATE fails while any deployment references the connection. (owner or admin, EE only) */
   setConnectionVisibility: Scalars['Boolean']['output'];
-  /** Give an embedded member a role in one environment. */
+  /** Give an embedded member a role in one environment. Supply exactly one of `role` or `customRoleId`. */
   setEmbeddedUserEnvironmentRole: EmbeddedUser;
   /** Set a project's reach. PRIVATE withholds it (and its workflows, deployments and executions) from the workspace; WORKSPACE shares it. ORGANIZATION is not supported for projects. (owner or admin, EE only) */
   setProjectVisibility: Scalars['Boolean']['output'];
@@ -2002,7 +2009,7 @@ export type Mutation = {
   updateEmbeddedMcpServerUrl?: Maybe<McpServer>;
   updateEmbeddedMcpTool?: Maybe<McpTool>;
   updateEmbeddedMcpToolEnabled?: Maybe<McpTool>;
-  /** Update an embedded member's role. */
+  /** Update an embedded member's embedded-wide role. Supply exactly one of `role` or `customRoleId`. */
   updateEmbeddedUserRole: EmbeddedUser;
   updateIdentityProvider: IdentityProviderType;
   updateIntegrationWorkflowPermissionExpression?: Maybe<IntegrationWorkflow>;
@@ -2041,14 +2048,16 @@ export type MutationAddDataTableColumnArgs = {
 
 
 export type MutationAddEmbeddedUserArgs = {
-  role: WorkspaceRole;
+  customRoleId?: InputMaybe<Scalars['ID']['input']>;
+  role?: InputMaybe<WorkspaceRole>;
   userId: Scalars['ID']['input'];
 };
 
 
 export type MutationAddEmbeddedUserByEmailArgs = {
+  customRoleId?: InputMaybe<Scalars['ID']['input']>;
   email: Scalars['String']['input'];
-  role: WorkspaceRole;
+  role?: InputMaybe<WorkspaceRole>;
 };
 
 
@@ -2744,8 +2753,9 @@ export type MutationSetConnectionVisibilityArgs = {
 
 
 export type MutationSetEmbeddedUserEnvironmentRoleArgs = {
+  customRoleId?: InputMaybe<Scalars['ID']['input']>;
   environment: EnvironmentEnum;
-  role: WorkspaceRole;
+  role?: InputMaybe<WorkspaceRole>;
   userId: Scalars['ID']['input'];
 };
 
@@ -3006,7 +3016,8 @@ export type MutationUpdateEmbeddedMcpToolEnabledArgs = {
 
 
 export type MutationUpdateEmbeddedUserRoleArgs = {
-  role: WorkspaceRole;
+  customRoleId?: InputMaybe<Scalars['ID']['input']>;
+  role?: InputMaybe<WorkspaceRole>;
   userId: Scalars['ID']['input'];
 };
 
@@ -3269,6 +3280,12 @@ export type PermissionScopeGroup = {
   scopes: Array<Scalars['String']['output']>;
 };
 
+/** The members a custom role is for: workspace members (AUTOMATION) or embedded members (EMBEDDED) */
+export enum PermissionScopeSide {
+  Automation = 'AUTOMATION',
+  Embedded = 'EMBEDDED'
+}
+
 export enum PlatformType {
   Automation = 'AUTOMATION',
   Embedded = 'EMBEDDED'
@@ -3521,7 +3538,8 @@ export type Query = {
    * List every custom role in the tenant. Roles are tenant-global: defined once, assignable in any
    * workspace. Pass a workspaceId to read as that workspace's member manager (requires the
    * WORKSPACE_MEMBER_MANAGE scope there — the id is authorization context, not a filter), or omit it
-   * for the tenant-admin management view.
+   * for the tenant-admin management view. Pass `side` to list only that side's roles; an embedded member
+   * manager may list the EMBEDDED roles without a workspaceId.
    */
   customRoles: Array<CustomRole>;
   dataTableRows: Array<DataTableRow>;
@@ -3604,7 +3622,7 @@ export type Query = {
   /**
    * Every permission scope the server recognises, grouped by the module that owns it, for composing a
    * role. Requires authentication: this is static metadata about what the server was built with,
-   * identical for every tenant.
+   * identical for every tenant. `side` picks the AUTOMATION (default) or EMBEDDED catalogue.
    */
   permissionScopeGroups: Array<PermissionScopeGroup>;
   preBuiltProjectTemplates: Array<ProjectTemplate>;
@@ -3994,6 +4012,7 @@ export type QueryCustomComponentDefinitionArgs = {
 
 
 export type QueryCustomRolesArgs = {
+  side?: InputMaybe<PermissionScopeSide>;
   workspaceId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -4275,6 +4294,11 @@ export type QueryMyWorkspaceScopesArgs = {
 
 export type QueryOrganizationConnectionsArgs = {
   environmentId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryPermissionScopeGroupsArgs = {
+  side?: InputMaybe<PermissionScopeSide>;
 };
 
 
