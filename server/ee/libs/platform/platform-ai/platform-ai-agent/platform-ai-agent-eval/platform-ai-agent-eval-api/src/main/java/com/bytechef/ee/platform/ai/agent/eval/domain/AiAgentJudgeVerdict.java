@@ -18,6 +18,7 @@ package com.bytechef.ee.platform.ai.agent.eval.domain;
 
 import com.bytechef.ee.platform.ai.agent.eval.constant.AiAgentJudgeScope;
 import com.bytechef.ee.platform.ai.agent.eval.constant.AiAgentJudgeType;
+import com.bytechef.ee.platform.ai.agent.eval.constant.AiAgentJudgeVerdictStatus;
 import java.time.Instant;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
@@ -49,9 +50,15 @@ public final class AiAgentJudgeVerdict {
     @Column("judge_scope")
     private int judgeScope;
 
-    private boolean passed;
+    @Column("status")
+    private int status;
 
-    private double score;
+    @Column("reason_code")
+    @Nullable
+    private String reasonCode;
+
+    @Nullable
+    private Double score;
 
     @Nullable
     private String explanation;
@@ -114,19 +121,29 @@ public final class AiAgentJudgeVerdict {
         this.judgeScope = judgeScope.ordinal();
     }
 
-    public boolean isPassed() {
-        return passed;
+    public AiAgentJudgeVerdictStatus getStatus() {
+        return AiAgentJudgeVerdictStatus.values()[status];
     }
 
-    public void setPassed(boolean passed) {
-        this.passed = passed;
+    public void setStatus(AiAgentJudgeVerdictStatus status) {
+        this.status = status.ordinal();
     }
 
-    public double getScore() {
+    @Nullable
+    public String getReasonCode() {
+        return reasonCode;
+    }
+
+    public void setReasonCode(@Nullable String reasonCode) {
+        this.reasonCode = reasonCode;
+    }
+
+    @Nullable
+    public Double getScore() {
         return score;
     }
 
-    public void setScore(double score) {
+    public void setScore(@Nullable Double score) {
         this.score = score;
     }
 
@@ -205,7 +222,8 @@ public final class AiAgentJudgeVerdict {
             ", judgeName='" + judgeName + '\'' +
             ", judgeType=" + judgeType +
             ", judgeScope=" + judgeScope +
-            ", passed=" + passed +
+            ", status=" + status +
+            ", reasonCode='" + reasonCode + '\'' +
             ", score=" + score +
             ", explanation='" + explanation + '\'' +
             ", createdDate=" + createdDate +
