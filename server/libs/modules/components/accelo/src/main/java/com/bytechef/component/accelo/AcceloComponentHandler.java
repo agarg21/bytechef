@@ -42,6 +42,7 @@ public class AcceloComponentHandler extends AbstractAcceloComponentHandler {
 
     @Override
     public List<ModifiableActionDefinition> getCustomActions() {
+        // measurement edit (fork only)
         return List.of(AcceloCreateTaskAction.ACTION_DEFINITION);
     }
 
