@@ -1,0 +1,32 @@
+name: measure-server
+# fork-only measurement harness (agarg21/bytechef, campaign 122): server job of
+# build_pull_request.yml on workflow_dispatch, without sonar/--scan (no SONAR_TOKEN in a fork).
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "seed run: dependencies only (--no-build-cache), like the frozen upstream entry"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Set up GraalVM for JDK 25
+      uses: graalvm/setup-graalvm@v1
+      with:
+        distribution: "graalvm-community"
+        java-version: "25"
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v4
+    - name: Build
+      env:
+        GITHUB_ACTIONS_BUILD: true
+      working-directory: server
+      run: ../gradlew check jacocoTestReport --stacktrace
