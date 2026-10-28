@@ -1,0 +1,38 @@
+name: measure-server
+# fork-only measurement harness (agarg21/bytechef, campaign 122): server job of
+# build_pull_request.yml on workflow_dispatch, without sonar/--scan (no SONAR_TOKEN in a fork).
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "seed run: dependencies only (--no-build-cache), like the frozen upstream entry"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Set up GraalVM for JDK 25
+      uses: graalvm/setup-graalvm@v1
+      with:
+        distribution: "graalvm-community"
+        java-version: "25"
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.gradle/caches
+        # upstream key hashes **/*.gradle and has been an exact hit since 2026-08-21 (never re-saves);
+        # a fixed string reproduces that: one seeded entry, exact hit, no save
+        key: ${{ runner.os }}-gradle-frozen
+        restore-keys: ${{ runner.os }}-gradle
+    - name: Build
+      env:
+        GITHUB_ACTIONS_BUILD: true
+      working-directory: server
+      run: ../gradlew check jacocoTestReport --stacktrace ${{ inputs.seed && '--no-build-cache' || '' }}
