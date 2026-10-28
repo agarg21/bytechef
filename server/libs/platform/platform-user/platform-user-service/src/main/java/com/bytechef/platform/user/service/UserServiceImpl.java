@@ -22,6 +22,7 @@ import com.bytechef.platform.security.constant.AuthorityConstants;
 import com.bytechef.platform.security.util.SecurityUtils;
 import com.bytechef.platform.user.constant.UserConstants;
 import com.bytechef.platform.user.domain.Authority;
+import com.bytechef.platform.user.domain.PersistentToken;
 import com.bytechef.platform.user.domain.User;
 import com.bytechef.platform.user.dto.AdminUserDTO;
 import com.bytechef.platform.user.exception.EmailAlreadyUsedException;
@@ -52,7 +53,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -403,18 +403,11 @@ public class UserServiceImpl implements UserService {
             .orElseThrow(UserNotFoundException::new);
     }
 
-    /**
-     * Persistent Token are used for providing automatic authentication, they should be automatically deleted after 30
-     * days.
-     * <p>
-     * This is scheduled to get fired everyday, at midnight.
-     */
     @Override
-    @Scheduled(cron = "0 0 0 * * ?")
     public void removeOldPersistentTokens() {
         LocalDate now = LocalDate.now();
 
-        persistentTokenRepository.findAllByTokenDateBefore(now.minusMonths(1))
+        persistentTokenRepository.findAllByTokenDateBefore(now.minusDays(PersistentToken.VALIDITY_DAYS))
             .forEach(token -> {
                 log.debug("Deleting token {}", token.getSeries());
 
@@ -642,13 +635,7 @@ public class UserServiceImpl implements UserService {
             .orElse(false);
     }
 
-    /**
-     * Not activated users should be automatically deleted after 3 days.
-     * <p>
-     * This is scheduled to get fired everyday, at 01:00 (am).
-     */
     @Override
-    @Scheduled(cron = "0 0 1 * * ?")
     public void removeNotActivatedUsers() {
         userRepository
             .findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(
